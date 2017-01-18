@@ -12,7 +12,7 @@
     "noble": ">=1.6.0",
     "prettyjson": "^1.2.1",
     "request": "^2.79.0",
-    "request-promise": "^4.1.1"
+    "request-promise-native": "^1.0.3"
   },
   "bin": "main.js"
 }

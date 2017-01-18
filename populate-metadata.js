@@ -1,21 +1,7 @@
 #!/usr/bin/env node
 
-var rp = require('request-promise');
-
-var HAWKBIT_BASE_URL = "http://localhost:8080/rest/v1"
-var LOGIN = "admin"
-var PASSWORD = "admin"
-
-var baseRequest = rp.defaults({
-    baseUrl: HAWKBIT_BASE_URL,
-    method: 'POST',
-    auth: {
-        user: LOGIN,
-        password: PASSWORD
-    },
-    json: true // Automatically stringifies the body to JSON
-})
-
+var fs = require('fs');
+var baseRequest = require('./rp_config.js');
 
 // create tags:
 var createTagsQuery = {
@@ -31,46 +17,133 @@ var createTagsQuery = {
     }, ]
 };
 
+var getSoftwareModuleType = {
+    uri: '/softwaremoduletypes',
+    method: 'GET',
+    qs: {
+        "q": "name==application"
+    }
+}
+
 var createDistributionSetTypeQuery = {
     uri: '/distributionsettypes',
     body: [{
-        "name": "microbit_app",
+        "name": "Micro:bit app",
         "description": "A packaged micro:bit application",
         "key": "microbit_app",
         "mandatorymodules": [{
-            "id": 1
+            "id": 0 // is fetched later on
         }]
     }]
+}
+
+var sw_modules = {
+    "space_invaders": "/Users/kartben/Google Drive/microbitapps/microbit-invaders-dfu.hex",
+    "hello_world": "/Users/kartben/Google Drive/microbitapps/microbit-helloworld-dfu.hex"
 }
 
 var createDistributionSetQuery = {
     uri: '/distributionsets',
     body: [{
-        "name": "space_invaders",
-        "description": "A micro:bit application for playing Space Invaders",
+        "name": "XXX",
+        "description": "A micro:bit application package that contains a XXX",
         "version": "1.0.0",
-        "type": "microbit_app"
-    }, {
-        "name": "hello_world",
-        "description": "A micro:bit application that displays 'Hello World!'",
-        "version": "1.0.0",
-        "type": "microbit_app"
+        "type": "microbit_app",
+        "modules": []
     }]
+}
+
+var createSoftwareModuleQuery = {
+    uri: '/softwaremodules',
+    body: [{
+        "vendor": "eclipseiot",
+        "name": "XXX",
+        "description": "A XXX for the micro:bit",
+        "type": "application",
+        "version": "1.0.0"
+    }]
+}
+
+var uploadBinaryArtifactQuery = {
+    formData: {
+        //        file: fs.createReadStream('/tmp/bla')
+    }
+}
+
+var createTargetsQuery = {
+    uri: '/targets',
+    body: [{
+        "controllerId": "cf:ac:73:e6:8d:fc",
+        "name": "vevut"
+    }, {
+        "controllerId": "c9:95:ed:8a:1d:a6",
+        "name": "vetop"
+    }, {
+        "controllerId": "ec:b4:ec:cc:7c:c3",
+        "name": "vavog"
+    }]
+}
+
+
+var uploadArtifact = function(softwaremodule) {
+    var id = softwaremodule.id;
+    uploadBinaryArtifactQuery.uri = '/softwaremodules/' + id + '/artifacts'
+    uploadBinaryArtifactQuery.formData.file = fs.createReadStream(sw_modules[softwaremodule.name])
+
+    return baseRequest(uploadBinaryArtifactQuery);
+}
+
+var uploadArtifactsAndCreateDistributionSets = function(softwaremodule) {
+    createSoftwareModuleQuery.body[0].name = softwaremodule;
+    var sw_module_id;
+
+    return baseRequest(createSoftwareModuleQuery)
+        .then(response => {
+            console.log(response.length + " Software Module(s) successfuly created [" + softwaremodule + "]")
+            sw_module_id = response[0].id
+            return uploadArtifact(response[0]);
+        })
+        .then(response => {
+            console.log("'" + softwaremodule + "'Artifact successfuly uploaded")
+
+            createDistributionSetQuery.body[0].name = softwaremodule;
+            createDistributionSetQuery.body[0].description =
+                "A micro:bit application package that contains a '" + softwaremodule + "' app.";
+
+            createDistributionSetQuery.body[0].modules = Array.of({
+                "id": sw_module_id
+            })
+
+            return baseRequest(createDistributionSetQuery);
+        });
 }
 
 baseRequest(createTagsQuery)
     .then(response => {
         console.log(response.length + " Tag(s) successfuly created")
 
+        return baseRequest(getSoftwareModuleType);
+    })
+    .then(response => {
+        var appTypeId = response.content[0].id
+        createDistributionSetTypeQuery.body[0].mandatorymodules[0].id = appTypeId;
+
         return baseRequest(createDistributionSetTypeQuery);
     })
     .then(response => {
-        console.log(response.length + "Distribution Set Type(s) successfuly created")
+        console.log(response.length + " Distribution Set Type(s) successfuly created")
 
-        return baseRequest(createDistributionSetQuery);
+        return Promise.all(Object.keys(sw_modules).map(uploadArtifactsAndCreateDistributionSets));
     })
     .then(response => {
-        console.log(response.length + "Distribution Set(s) successfuly created")
+        console.log(response.length + " Distribution Set(s) fully created")
+
+        // NOTE we do this for convenience only, since hawkBit supports plug&play and devices 
+        // don't necessarily _have to_ be provisioned
+        return baseRequest(createTargetsQuery);
+    })
+    .then(response => {
+        console.log(response.length + " Target(s) successfuly created")
     })
     .catch(err => {
         console.log(err.message)
