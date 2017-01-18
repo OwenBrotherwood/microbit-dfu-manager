@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 
 var baseRequest = require('./rp_config.js');
-var noble = require('noble');
+const noble = require('noble');
+
+const fs = require('fs'),
+    fsp = require('fs-promise');
 
 var MICROBIT_DFU_SERVICE_UUID = 'e95d93b0251d470aa062fa1922dfa9a8'
+
+var baseRequest = baseRequest.defaults({
+    baseUrl: "http://localhost:8080/DEFAULT/controller/v1/",
+    method: 'GET',
+    auth: null
+})
+
 
 noble.on('stateChange', function(state) {
     console.log("Bluetooth state: [" + state + "]")
@@ -18,6 +28,7 @@ noble.on('stateChange', function(state) {
         })
     }
 })
+
 
 noble.on('discover', function(p) {
     perif = p
@@ -47,26 +58,118 @@ noble.on('discover', function(p) {
                             }
                         })
 
-                        console.log(dfuControlCharacteristic)
+                        var deploymentBaseUrl;
+                        var deploymentId;
+                        var artifactUrl;
 
-                        console.log("Switching " + deviceName + " to DFU bootloader")
-                        dfuControlCharacteristic.write(new Buffer([0x01]), false, function(err) {
-                            console.log("Error when enabling DFU for " + deviceName);
-                            console.log(err);
-
-
-                            p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
-                                console.log(error)
-                                console.log(services)
+                        console.log("Querying Eclipse hawkBit server for information regarding " + p.address)
+                        baseRequest(p.address)
+                            .then(response => {
+                                if (response._links.deploymentBase) {
+                                    deploymentBaseUrl = response._links.deploymentBase.href
+                                    return baseRequest({
+                                        baseUrl: null,
+                                        uri: deploymentBaseUrl
+                                    })
+                                } else {
+                                    return Promise.reject(deviceName + " - This device doesn't have pending updates.")
+                                }
                             })
+                            .then(response => {
+                                var deployment = response.deployment;
+                                deploymentId = response.id;
+                                var chunks = deployment.chunks;
 
-                            console.log('bla');
+                                artifactUrl = chunks[0].artifacts[0]._links['download-http'].href;
 
-                        });
+                                return baseRequest({
+                                    baseUrl: null,
+                                    uri: artifactUrl,
+                                    json: false,
+                                    encoding: null // binary
+                                })
+
+                            })
+                            .then(response => {
+                                return fsp.writeFile('/tmp/xxxx.bin', response)
+                            })
+                            .then(() => {
+                                console.log("Binary properly downloaded for updating " + deviceName);
+
+                                // report about this successful download
+                                return baseRequest({
+                                    baseUrl: deploymentBaseUrl.split("?")[0], // remove the ?c=329048320948 stuff at the end of the base url
+                                    uri: "/feedback",
+                                    method: 'POST',
+                                    body: {
+                                        id: deploymentId,
+                                        status: {
+                                            execution: "proceeding",
+                                            result: {
+                                                finished: "success",
+                                                progress: {
+                                                    cnt: 1,
+                                                    of: 5
+                                                }
+                                            },
+                                            details: [
+                                                "Download completed by microbit-dfu-manager"
+                                            ]
+                                        }
+                                    }
+
+                                });
+                            })
+                            .then(response => {
+                                // console.log("Update fully complete… maybe 😀")
+
+                                dfuControlCharacteristic.write(new Buffer([0x01]), false, function(err) {
+                                    if (err) {
+                                        console.log("Error when enabling DFU for " + deviceName);
+                                        console.log(err);
+                                    } else {
+                                        console.log("Discovering DFU hopefully")
+                                        p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
+                                            //console.log(error)
+                                            //console.log(services)
+                                            services.map((e) => { console.log (e.uuid)})
+                                        })
+                                    }
+
+                                });
 
 
-                        // TODO hawkbit stuff
 
+                            })
+                            .catch(err => {
+                                if (err.message) {
+                                    console.log("ERROR: ", err.message)
+                                } else {
+                                    console.log("ERROR: ", err)
+                                }
+
+                                if (deploymentId) {
+                                    // If we had started a deployment, report back that it failed
+                                    // return baseRequest({
+                                    // baseUrl: deploymentBaseUrl.split("?")[0], // remove the ?c=329048320948 stuff at the end of the base url
+                                    // uri: "/feedback",
+                                    // method: 'POST',
+                                    // body: {
+                                    //     id: deploymentId,
+                                    //     status: {
+                                    //         execution: "closed",
+                                    //         result: {
+                                    //             finished: "failure"
+                                    //         },
+                                    //         details: [
+                                    //             err.message | err.toString()
+                                    //         ]
+                                    //     }
+                                    // }
+                                    // });
+                                }
+
+                            })
                         dfu = true;
                     }
                 })

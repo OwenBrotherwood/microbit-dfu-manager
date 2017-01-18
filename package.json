@@ -9,10 +9,13 @@
   },
   "license": "EPL-1.0",
   "dependencies": {
+    "es6-promisify": "^5.0.0",
+    "fs-promise": "^1.0.0",
     "noble": ">=1.6.0",
     "prettyjson": "^1.2.1",
     "request": "^2.79.0",
-    "request-promise-native": "^1.0.3"
+    "request-promise-native": "^1.0.3",
+    "tmp": "0.0.31"
   },
   "bin": "main.js"
 }

@@ -38,8 +38,8 @@ var createDistributionSetTypeQuery = {
 }
 
 var sw_modules = {
-    "space_invaders": "/Users/kartben/Google Drive/microbitapps/microbit-invaders-dfu.hex",
-    "hello_world": "/Users/kartben/Google Drive/microbitapps/microbit-helloworld-dfu.hex"
+    "space_invaders": "/Users/kartben/Google Drive/microbitapps/microbit-invaders-dfu.bin",
+    "hello_world": "/Users/kartben/Google Drive/microbitapps/microbit-helloworld-dfu.bin"
 }
 
 var createDistributionSetQuery = {
