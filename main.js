@@ -21,12 +21,14 @@ noble.on('stateChange', function(state) {
 
 noble.on('discover', function(p) {
     perif = p
-    var deviceName  = p.advertisement.localName;
+    var deviceName = p.advertisement.localName;
 
     console.log("Found " + deviceName + " " + p.address)
-    console.log("Trying to connect to " + p.advertisement.localName + "[" + p.address + "]")
+    console.log("Trying to connect to " + deviceName + "[" + p.address + "]")
 
     p.connect(function() {
+        console.log("Connected to " + deviceName + ". Now checking available services");
+
         p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
             if (!error) {
                 var dfu = false;
@@ -40,25 +42,25 @@ noble.on('discover', function(p) {
                         // Write 0x01 to the MICROBIT_DFU_CONTROL characteristic so 
                         // as to switch to the Nordic DFU bootloader
                         s.characteristics.forEach(function(ch, charId) {
-                        	if(ch.uuid == 'e95d93b1251d470aa062fa1922dfa9a8') {
-                        		dfuControlCharacteristic = ch
-                        	}
+                            if (ch.uuid == 'e95d93b1251d470aa062fa1922dfa9a8') {
+                                dfuControlCharacteristic = ch
+                            }
                         })
 
                         console.log(dfuControlCharacteristic)
 
-                        console.log("Switching " +deviceName+" to DFU bootloader")
-                        dfuControlCharacteristic.write(new Buffer([0x01]), false, function(err){
-                        	console.log("Error when enabling DFU for " + deviceName);
-                        	console.log(err);
+                        console.log("Switching " + deviceName + " to DFU bootloader")
+                        dfuControlCharacteristic.write(new Buffer([0x01]), false, function(err) {
+                            console.log("Error when enabling DFU for " + deviceName);
+                            console.log(err);
 
 
-        p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
-        	console.log(error)
-        	console.log(services)
-        })
+                            p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
+                                console.log(error)
+                                console.log(services)
+                            })
 
-console.log('bla');
+                            console.log('bla');
 
                         });
 
