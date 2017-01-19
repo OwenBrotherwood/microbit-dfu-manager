@@ -16,6 +16,7 @@ var baseRequest = baseRequest.defaults({
     auth: null
 })
 
+var cproc    = require('child_process');
 
 var resumeBLEScanning = function() {
     noble.startScanning([], true, function(error) {
@@ -38,27 +39,49 @@ noble.on('stateChange', function(state) {
 })
 
 
-noble.on('discover', function(p) {
-    var dfu = false;
+var dfu = false;
 
+noble.on('discover', function(p) {
     // we found a peripheral, stop scanning
     noble.stopScanning();
 
     p.once('disconnect', function() {
         console.log("Peripheral " + p.advertisement.localName + " -> disconnected")
         if (dfu) {
-            console.log("RECONNECTING to trigger update")
-            p.connect(function() {
-                console.log("RECONNECTED…");
-                nrfUpdate(p, '/tmp/xxxx.bin')
-            })
-        }
+            console.log("trigger update")
+
+
+
+
+//	                nrfUpdate(p, '/tmp/xxxx.bin')
+
+	setTimeout(() => {
+
+        child = cproc.fork('/home/pi/Repositories/nrf5x-dfu-updater/update.js', [ "-f", "/tmp/xxx.bin", "-a", "ec:b4:ec:cc:7c:c3" ], { stdio: 'inherit' } )  ;
+
+child.on('exit',function(code) {
+	console.log("FINISHED - resume BLE scanning in main process");
+        resumeBLEScanning();
+	dfu = false;
+});
+
+}, 2000);
+
+        } else {
+		resumeBLEScanning();
+}
     });
 
 
     var deviceName = p.advertisement.localName;
 
     console.log("Found " + deviceName + " " + p.address)
+
+if (dfu) {
+console.log('dfu already in progress');
+return;
+}
+
     console.log("Trying to connect to " + deviceName + "[" + p.address + "]")
 
     p.connect(function() {
@@ -190,7 +213,7 @@ noble.on('discover', function(p) {
                                     // });
                                 }
 
-                                resumeBLEScanning();
+                                //resumeBLEScanning();
 
 
                             })
@@ -200,6 +223,8 @@ noble.on('discover', function(p) {
 
                 if (!dfu) {
                     console.log(deviceName + " - this device does not support DFU or is not a micro:bit");
+                    resumeBLEScanning();
+
                 }
             } else {
                 console.log(error)
