@@ -9,28 +9,37 @@ const fs = require('fs'),
 var MICROBIT_DFU_SERVICE_UUID = 'e95d93b0251d470aa062fa1922dfa9a8'
 
 var baseRequest = baseRequest.defaults({
-    baseUrl: "http://localhost:8080/DEFAULT/controller/v1/",
+    baseUrl: "http://192.168.0.42:8080/DEFAULT/controller/v1/",
     method: 'GET',
     auth: null
 })
 
 
+var resumeBLEScanning = function() {
+    noble.startScanning([], true, function(error) {
+        if (!error) {
+            console.log("Scanning for bluetooth le devices…")
+        } else {
+            console.log("Problems during scanning for bluetooth le devices: " + error)
+        }
+    });
+}
+
 noble.on('stateChange', function(state) {
     console.log("Bluetooth state: [" + state + "]")
 
     if (state === "poweredOn") {
-        noble.startScanning([], true, function(error) {
-            if (!error) {
-                console.log("Scanning for bluetooth le devices…")
-            } else {
-                console.log("Problems during scanning for bluetooth le devices: " + error)
-            }
-        })
+        resumeBLEScanning();
+    } else {
+        noble.stopScanning();
     }
 })
 
 
 noble.on('discover', function(p) {
+    // we found a peripheral, stop scanning
+    noble.stopScanning();
+
     perif = p
     var deviceName = p.advertisement.localName;
 
@@ -132,13 +141,14 @@ noble.on('discover', function(p) {
                                         p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
                                             //console.log(error)
                                             //console.log(services)
-                                            services.map((e) => { console.log (e.uuid)})
+                                            services.map((e) => {
+                                                console.log(e.uuid)
+                                            })
                                         })
                                     }
-
                                 });
 
-
+                                resumeBLEScanning();
 
                             })
                             .catch(err => {
@@ -168,6 +178,9 @@ noble.on('discover', function(p) {
                                     // }
                                     // });
                                 }
+
+                                resumeBLEScanning();
+
 
                             })
                         dfu = true;
