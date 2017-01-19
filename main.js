@@ -46,13 +46,13 @@ noble.on('discover', function(p) {
 
     p.once('disconnect', function() {
         console.log("Peripheral " + p.advertisement.localName + " -> disconnected")
-        p.connect(function() {
-            console.log("RECONNECTED…");
-            if (dfu) {
-                console.log("Trigger update")
+        if (dfu) {
+            console.log("RECONNECTING to trigger update")
+            p.connect(function() {
+                console.log("RECONNECTED…");
                 nrfUpdate(p, '/tmp/xxxx.bin')
-            }
-        })
+            })
+        }
     });
 
 
