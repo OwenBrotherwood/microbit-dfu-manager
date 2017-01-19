@@ -6,6 +6,8 @@ const noble = require('noble');
 const fs = require('fs'),
     fsp = require('fs-promise');
 
+const nrfUpdate = require('nrf5x-dfu-updater')
+
 var MICROBIT_DFU_SERVICE_UUID = 'e95d93b0251d470aa062fa1922dfa9a8'
 
 var baseRequest = baseRequest.defaults({
@@ -37,10 +39,23 @@ noble.on('stateChange', function(state) {
 
 
 noble.on('discover', function(p) {
+    var dfu = false;
+
     // we found a peripheral, stop scanning
     noble.stopScanning();
 
-    perif = p
+    p.once('disconnect', function() {
+        console.log("Peripheral " + p.advertisement.localName + " -> disconnected")
+        p.connect(function() {
+            console.log("RECONNECTED…");
+            if (dfu) {
+                console.log("Trigger update")
+                nrfUpdate(p, '/tmp/xxxx.bin')
+            }
+        })
+    });
+
+
     var deviceName = p.advertisement.localName;
 
     console.log("Found " + deviceName + " " + p.address)
@@ -51,7 +66,6 @@ noble.on('discover', function(p) {
 
         p.discoverAllServicesAndCharacteristics(function(error, services, characteristics) {
             if (!error) {
-                var dfu = false;
                 var dfuControlCharacteristic;
 
 
@@ -147,9 +161,6 @@ noble.on('discover', function(p) {
                                         })
                                     }
                                 });
-
-                                resumeBLEScanning();
-
                             })
                             .catch(err => {
                                 if (err.message) {

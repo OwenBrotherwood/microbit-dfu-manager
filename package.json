@@ -12,10 +12,14 @@
     "es6-promisify": "^5.0.0",
     "fs-promise": "^1.0.0",
     "noble": ">=1.7.0",
+    "nrf5x-dfu-updater": "kartben/nrf5x-dfu-updater",
     "prettyjson": "^1.2.1",
     "request": "^2.79.0",
     "request-promise-native": "^1.0.3",
     "tmp": "0.0.31"
   },
-  "bin": "main.js"
+  "bin": "main.js",
+  "devDependencies": {
+    "electron-rebuild": "^1.5.7"
+  }
 }
