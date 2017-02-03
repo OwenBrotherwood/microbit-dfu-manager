@@ -99,12 +99,12 @@ var uploadArtifactsAndCreateDistributionSets = function(softwaremodule) {
 
     return baseRequest(createSoftwareModuleQuery)
         .then(response => {
-            console.log(response.length + " Software Module(s) successfuly created [" + softwaremodule + "]")
+            console.log(response.length + " Software Module(s) successfully created [" + softwaremodule + "]")
             sw_module_id = response[0].id
             return uploadArtifact(response[0]);
         })
         .then(response => {
-            console.log("'" + softwaremodule + "'Artifact successfuly uploaded")
+            console.log("'" + softwaremodule + "' Artifact successfully uploaded")
 
             createDistributionSetQuery.body[0].name = softwaremodule;
             createDistributionSetQuery.body[0].description =
@@ -120,7 +120,7 @@ var uploadArtifactsAndCreateDistributionSets = function(softwaremodule) {
 
 baseRequest(createTagsQuery)
     .then(response => {
-        console.log(response.length + " Tag(s) successfuly created")
+        console.log(response.length + " Tag(s) successfully created")
 
         return baseRequest(getSoftwareModuleType);
     })
@@ -131,7 +131,7 @@ baseRequest(createTagsQuery)
         return baseRequest(createDistributionSetTypeQuery);
     })
     .then(response => {
-        console.log(response.length + " Distribution Set Type(s) successfuly created")
+        console.log(response.length + " Distribution Set Type(s) successfully created")
 
         return Promise.all(Object.keys(sw_modules).map(uploadArtifactsAndCreateDistributionSets));
     })
@@ -143,7 +143,7 @@ baseRequest(createTagsQuery)
         return baseRequest(createTargetsQuery);
     })
     .then(response => {
-        console.log(response.length + " Target(s) successfuly created")
+        console.log(response.length + " Target(s) successfully created")
     })
     .catch(err => {
         console.log(err.message)
